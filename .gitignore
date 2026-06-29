@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+
+# py2app / build artifacts
+build/
+dist/
+.eggs/
+
+# macOS
+.DS_Store
+
+# Local tooling / unrelated
+.claude/
+openspec/

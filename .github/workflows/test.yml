@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  unit-tests:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Run unit tests
+        # Only the pure-logic unit tests run in CI — the integration tests need
+        # a live Claude desktop app and a GUI session, which the runner lacks.
+        run: uv run test_app.py -k unit
