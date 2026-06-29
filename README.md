@@ -47,8 +47,9 @@ though only the selected one is readable.
 
 ```sh
 brew tap grothkopp/claudecontrol
+brew trust grothkopp/claudecontrol   # newer Homebrew requires trusting third-party taps
 brew install claudecontrol
-claudecontrol            # starts the menubar app
+claudecontrol                        # starts the menubar app
 ```
 
 > The first run uses `uv` to fetch the small Python dependency (`rumps`); grant
