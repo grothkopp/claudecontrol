@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.10"
-# dependencies = ["rumps>=0.4.0"]
+# dependencies = ["rumps>=0.4.0", "pyobjc-framework-Quartz>=10"]
 # ///
 """
 claudebar — a menubar app that surfaces the Claude Mac App's sidebar (Chat,
@@ -38,6 +38,19 @@ import time
 
 import rumps
 
+try:
+    import Quartz
+
+    def screen_locked():
+        """True when the macOS session is locked (screensaver / lock screen).
+        While locked, the window server hides app windows from the Accessibility
+        API, so reads would just fail — we pause them instead."""
+        d = Quartz.CGSessionCopyCurrentDictionary()
+        return bool(d.get("CGSSessionScreenIsLocked", 0)) if d else False
+except Exception:  # pragma: no cover - Quartz missing → never treat as locked
+    def screen_locked():
+        return False
+
 # When bundled as a .app (py2app), the helper scripts live in the app's
 # Resources dir, which py2app exposes via $RESOURCEPATH. As a plain script,
 # they sit next to this file.
@@ -46,6 +59,7 @@ STATE_JS = os.path.join(BASE, "claude-state.js")
 FOCUS_JS = os.path.join(BASE, "claude-focus.js")
 
 REFRESH_GAP_SECONDS = 2.0
+LOCK_POLL_SECONDS = 3.0       # while the screen is locked, just re-check this often
 UI_TICK_SECONDS = 1.0
 READ_TIMEOUT = 90
 TITLE_MAXLEN = 32
@@ -115,6 +129,7 @@ class ClaudeBar(rumps.App):
         self._updated_at = None
         self._stale = False
         self._reading = False
+        self._locked = False
         self._last_error = None
 
         self._menu_sig = None
@@ -130,7 +145,18 @@ class ClaudeBar(rumps.App):
     # ---- background reader (sequential; never overlaps) ---------------------
     def _reader_loop(self):
         while True:
+            # While the screen is locked, app windows are hidden from the
+            # Accessibility API — skip the (futile, ~5 s) read entirely and just
+            # poll the lock state cheaply until the user is back.
+            if screen_locked():
+                with self._lock:
+                    self._locked = True
+                    self._reading = False
+                self._wake.wait(timeout=LOCK_POLL_SECONDS)
+                self._wake.clear()
+                continue
             with self._lock:
+                self._locked = False
                 self._reading = True
             state = _read_state()
             now = time.monotonic()
@@ -189,11 +215,16 @@ class ClaudeBar(rumps.App):
             updated_at = self._updated_at
             stale = self._stale
             reading = self._reading
+            locked = self._locked
             error = self._last_error
 
         if cache is None:
-            self.title = "Claude: …" if updated_at is None else "Claude: open a tab"
-            self.mi_age.title = f"({error})" if error else "Waiting for Claude…"
+            if locked:
+                self.title = "Claude: ⏸"
+                self.mi_age.title = "⏸ screen locked"
+            else:
+                self.title = "Claude: …" if updated_at is None else "Claude: open a tab"
+                self.mi_age.title = f"({error})" if error else "Waiting for Claude…"
             return
 
         items = cache.get("items", [])
@@ -204,9 +235,12 @@ class ClaudeBar(rumps.App):
             self._set_menu(items, tab)
             self._menu_sig = sig
 
-        age = int(time.monotonic() - cache_at) if cache_at else 0
-        freshness = "cached" if stale else ("refreshing…" if reading else "updated")
-        self.mi_age.title = f"{tab} · {freshness} {age}s ago"
+        if locked:
+            self.mi_age.title = "⏸ screen locked"
+        else:
+            age = int(time.monotonic() - cache_at) if cache_at else 0
+            freshness = "cached" if stale else ("refreshing…" if reading else "updated")
+            self.mi_age.title = f"{tab} · {freshness} {age}s ago"
 
         self.title = select_menubar_title(items, focused, tab)
 

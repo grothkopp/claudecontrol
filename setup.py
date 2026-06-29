@@ -20,8 +20,8 @@ OPTIONS = {
         "CFBundleName": "ClaudeControl",
         "CFBundleDisplayName": "Claude Control",
         "CFBundleIdentifier": "de.xsg.claudecontrol",
-        "CFBundleVersion": "0.1.0",
-        "CFBundleShortVersionString": "0.1.0",
+        "CFBundleVersion": "0.1.1",
+        "CFBundleShortVersionString": "0.1.1",
         "NSHumanReadableCopyright": "© 2026 Stefan Grothkopp. MIT License. "
         "Unofficial — not affiliated with Anthropic.",
     },
