@@ -80,7 +80,7 @@ def _read_state():
     try:
         out = subprocess.run(
             ["osascript", "-l", "JavaScript", STATE_JS],
-            capture_output=True, text=True, timeout=READ_TIMEOUT,
+            capture_output=True, text=True, encoding="utf-8", timeout=READ_TIMEOUT,
         )
         if out.returncode != 0:
             return {"ok": False, "error": out.stderr.strip() or "osascript failed"}
@@ -201,7 +201,8 @@ class ClaudeBar(rumps.App):
         args = ["osascript", "-l", "JavaScript", FOCUS_JS, name] + ([tab] if tab else [])
         def cb(_):
             threading.Thread(
-                target=lambda: subprocess.run(args, capture_output=True, text=True, timeout=25),
+                target=lambda: subprocess.run(
+                    args, capture_output=True, text=True, encoding="utf-8", timeout=25),
                 daemon=True,
             ).start()
         return cb

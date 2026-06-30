@@ -42,7 +42,7 @@ OPEN_SETTLE = 2.5     # seconds to let a conversation open
 # ----------------------------------------------------------------------------
 def read_state():
     out = subprocess.run(["osascript", "-l", "JavaScript", STATE_JS],
-                         capture_output=True, text=True, timeout=90)
+                         capture_output=True, text=True, encoding="utf-8", timeout=90)
     return json.loads(out.stdout.strip() or "{}")
 
 
