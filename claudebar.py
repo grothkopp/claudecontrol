@@ -1,6 +1,10 @@
 # /// script
 # requires-python = ">=3.10"
-# dependencies = ["rumps>=0.4.0", "pyobjc-framework-Quartz>=10"]
+# dependencies = [
+#   "rumps>=0.4.0",
+#   "pyobjc-framework-Quartz>=10",
+#   "pyobjc-framework-ApplicationServices>=10",
+# ]
 # ///
 """
 claudebar — a menubar app that surfaces the Claude Mac App's sidebar (Chat,
@@ -50,6 +54,28 @@ try:
 except Exception:  # pragma: no cover - Quartz missing → never treat as locked
     def screen_locked():
         return False
+
+try:
+    from ApplicationServices import (
+        AXIsProcessTrustedWithOptions, kAXTrustedCheckOptionPrompt)
+
+    def accessibility_trusted(prompt=False):
+        """True if this process is trusted for Accessibility (required for the
+        osascript/System Events reads). With prompt=True, also surface the system
+        permission dialog. The grant is attributed to the *responsible* app —
+        ClaudeControl.app for the bundled app, or the terminal/launcher that ran
+        `claudecontrol` for the Homebrew CLI."""
+        return bool(AXIsProcessTrustedWithOptions({kAXTrustedCheckOptionPrompt: bool(prompt)}))
+except Exception:  # pragma: no cover - framework missing → don't block the UI
+    def accessibility_trusted(prompt=False):
+        return True
+
+
+def _is_permission_error(err):
+    """osascript errors that mean 'permission not granted'."""
+    e = (err or "").lower()
+    return ("assistive access" in e or "-1719" in e          # Accessibility
+            or "not authorized" in e or "-1743" in e)         # Automation (Apple events)
 
 # When bundled as a .app (py2app), the helper scripts live in the app's
 # Resources dir, which py2app exposes via $RESOURCEPATH. As a plain script,
@@ -132,6 +158,10 @@ class ClaudeBar(rumps.App):
         self._locked = False
         self._last_error = None
 
+        # Surface the Accessibility permission dialog on first launch if needed,
+        # and track whether we're trusted (osascript reads fail with -1719 if not).
+        self._ax_ok = accessibility_trusted(prompt=True)
+
         self._menu_sig = None
 
         self.mi_age = rumps.MenuItem("Updated: —")
@@ -170,11 +200,14 @@ class ClaudeBar(rumps.App):
                     self._current_tab = tab
                     self._stale = False
                     self._last_error = None
+                    self._ax_ok = True
                 else:
                     # No tab (transient/ambiguous) or read failed: keep showing
                     # whatever tab we last had, marked stale.
                     self._stale = True
                     self._last_error = state.get("error") if not state.get("ok") else None
+                    if _is_permission_error(self._last_error):
+                        self._ax_ok = False
             self._wake.wait(timeout=REFRESH_GAP_SECONDS)
             self._wake.clear()
 
@@ -195,6 +228,7 @@ class ClaudeBar(rumps.App):
         self.menu.add(None)
         self.menu.add(self.mi_age)
         self.menu.add(rumps.MenuItem("Refresh now", callback=self.refresh_now))
+        self.menu.add(rumps.MenuItem("Open Accessibility Settings…", callback=self.open_accessibility))
         self.menu.add(rumps.MenuItem("Quit", callback=rumps.quit_application))
 
     def _make_switch(self, name, tab):
@@ -217,7 +251,13 @@ class ClaudeBar(rumps.App):
             stale = self._stale
             reading = self._reading
             locked = self._locked
+            ax_ok = self._ax_ok
             error = self._last_error
+
+        if not ax_ok:
+            self.title = "⚠️ Accessibility"
+            self.mi_age.title = "Grant access: menu → Open Accessibility Settings…"
+            return
 
         if cache is None:
             if locked:
@@ -248,6 +288,14 @@ class ClaudeBar(rumps.App):
     # ---- actions -----------------------------------------------------------
     def refresh_now(self, _=None):
         self._wake.set()
+
+    def open_accessibility(self, _=None):
+        """Re-surface the permission dialog and open the Accessibility pane."""
+        accessibility_trusted(prompt=True)
+        subprocess.run(
+            ["open", "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"],
+            capture_output=True)
+        self._wake.set()  # re-check on the next cycle
 
 
 if __name__ == "__main__":
