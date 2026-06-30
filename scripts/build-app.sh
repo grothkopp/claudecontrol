@@ -7,7 +7,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 rm -rf build dist
-uv run --with py2app --with rumps python setup.py py2app
+uv run --with py2app --with rumps --with pyobjc-framework-Quartz python setup.py py2app
 
 echo
 echo "Built: dist/ClaudeControl.app"

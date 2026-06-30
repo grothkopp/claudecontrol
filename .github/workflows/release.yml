@@ -1,0 +1,51 @@
+name: Build DMG
+
+# Builds a self-contained ClaudeControl.app (py2app), packages it as a .dmg, and
+# — for a version tag — attaches the .dmg to the GitHub release so it can be
+# downloaded directly. Manual runs (workflow_dispatch) just upload the .dmg as a
+# workflow artifact. This is an alternative to the Homebrew install, not a
+# replacement.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write # needed to attach the .dmg to the release
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Determine version
+        id: ver
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=0.0.0-dev" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build .app
+        run: ./scripts/build-app.sh
+
+      - name: Build .dmg
+        run: ./scripts/build-dmg.sh "${{ steps.ver.outputs.version }}"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClaudeControl-dmg
+          path: dist/*.dmg
+
+      - name: Attach .dmg to the release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/ClaudeControl-*.dmg

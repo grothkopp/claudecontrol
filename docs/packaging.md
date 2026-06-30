@@ -1,10 +1,33 @@
 # Packaging & distribution
 
-Two ways to ship `claudecontrol`. A **formula** is simplest (no prebuilt binary;
-runs the scripts via `uv`). A **cask** ships a real double-clickable `.app`.
+Three coexisting channels:
 
-Both live in a Homebrew **tap** — a repo named `homebrew-<tap>`. For
+- **`.dmg`** — a self-contained `.app`, built in CI and attached to each release
+  (see below). The easiest install for non-technical users.
+- **Homebrew formula** — runs the scripts via `uv`; no prebuilt binary.
+- **Homebrew cask** — wraps the `.dmg`/`.app` (optional; needs the release asset).
+
+The Homebrew options live in a **tap** — a repo named `homebrew-<tap>`. For
 `brew tap grothkopp/claudecontrol`, that's `grothkopp/homebrew-claudecontrol`.
+
+---
+
+## .dmg via CI (GitHub Actions)
+
+[`.github/workflows/release.yml`](../.github/workflows/release.yml) runs on every
+`v*` tag (and on manual `workflow_dispatch`):
+
+1. `./scripts/build-app.sh` — py2app → `dist/ClaudeControl.app` (menubar-only).
+2. `./scripts/build-dmg.sh <version>` — `hdiutil` → `dist/ClaudeControl-<v>.dmg`
+   with a drag-to-Applications layout.
+3. Uploads the `.dmg` as a workflow artifact, and — for a tag — attaches it to the
+   GitHub release (`softprops/action-gh-release`).
+
+So cutting a release (`gh release create vX.Y.Z`) produces a downloadable `.dmg`
+on that release automatically. The app is **unsigned**; document the Gatekeeper
+right-click-Open / `xattr -dr com.apple.quarantine` step for users.
+
+Build locally the same way: `./scripts/build-app.sh && ./scripts/build-dmg.sh 0.1.2`.
 
 ---
 

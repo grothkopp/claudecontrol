@@ -43,6 +43,19 @@ though only the selected one is readable.
 
 ## Install
 
+### Download the .dmg (no terminal needed)
+
+Grab the latest **`ClaudeControl-*.dmg`** from the
+[**Releases**](https://github.com/grothkopp/claudecontrol/releases/latest) page,
+open it, and drag **ClaudeControl** into Applications. It runs as a menubar item
+(no dock icon). The `.dmg` is built in CI by the
+[Build DMG workflow](.github/workflows/release.yml).
+
+> The app is **not code-signed/notarized**, so on first launch macOS Gatekeeper
+> will block it. **Right-click the app → Open** (once), or run
+> `xattr -dr com.apple.quarantine /Applications/ClaudeControl.app`. Then grant it
+> Accessibility permission.
+
 ### Homebrew (tap)
 
 ```sh
@@ -63,10 +76,14 @@ cd claudecontrol
 uv run claudebar.py      # uv provisions rumps automatically — no manual venv
 ```
 
-### As a double-clickable .app
+### Build the .app/.dmg yourself
 
-See [Packaging](#packaging) to build a self-contained `ClaudeControl.app` (menubar
--only, no dock icon) with `py2app`.
+```sh
+./scripts/build-app.sh    # → dist/ClaudeControl.app  (py2app, menubar-only)
+./scripts/build-dmg.sh 0.1.2   # → dist/ClaudeControl-0.1.2.dmg
+```
+
+See [Packaging](#packaging) for details and the release flow.
 
 ## How it works
 
@@ -111,18 +128,28 @@ available on the runner).
 
 ## Packaging
 
-Build a self-contained, double-clickable, menubar-only app with
-[`py2app`](https://py2app.readthedocs.io/):
+A self-contained, menubar-only `.app` is built with
+[`py2app`](https://py2app.readthedocs.io/) and packaged into a `.dmg`:
 
 ```sh
 ./scripts/build-app.sh         # → dist/ClaudeControl.app
+./scripts/build-dmg.sh 0.1.2   # → dist/ClaudeControl-0.1.2.dmg
 ```
 
-To publish via Homebrew as a **cask** (the `.app`), zip `dist/ClaudeControl.app`,
-attach it to a GitHub release, fill the `sha256` in [`Casks/claudecontrol.rb`](Casks/claudecontrol.rb),
-and host it in a `homebrew-claudecontrol` tap. The simpler **formula** route (the
-`brew install` above) installs the scripts + a `claudecontrol` launcher and needs
-no prebuilt binary — see [`docs/packaging.md`](docs/packaging.md).
+On every **version tag** (`v*`), the [Build DMG workflow](.github/workflows/release.yml)
+runs these on a macOS runner and **attaches the `.dmg` to the GitHub release**, so
+users can just download it. (Manual `workflow_dispatch` runs upload the `.dmg` as a
+workflow artifact instead.)
+
+Distribution channels — all coexist:
+
+| Channel | Command / action | Notes |
+|---|---|---|
+| **.dmg** | download from Releases | drag-to-Applications; unsigned (Gatekeeper) |
+| **Homebrew formula** | `brew install claudecontrol` | runs the scripts via `uv`; no binary |
+| **Homebrew cask** | (optional) `brew install --cask` | wraps the `.dmg`/`.app` — see [`Casks/claudecontrol.rb`](Casks/claudecontrol.rb) |
+
+Full release flow: [`docs/packaging.md`](docs/packaging.md).
 
 ## Limitations
 

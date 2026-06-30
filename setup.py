@@ -20,13 +20,13 @@ OPTIONS = {
         "CFBundleName": "ClaudeControl",
         "CFBundleDisplayName": "Claude Control",
         "CFBundleIdentifier": "de.xsg.claudecontrol",
-        "CFBundleVersion": "0.1.1",
-        "CFBundleShortVersionString": "0.1.1",
+        "CFBundleVersion": "0.1.2",
+        "CFBundleShortVersionString": "0.1.2",
         "NSHumanReadableCopyright": "© 2026 Stefan Grothkopp. MIT License. "
         "Unofficial — not affiliated with Anthropic.",
     },
     "packages": ["rumps"],
-    "includes": ["objc", "Foundation", "AppKit"],
+    "includes": ["objc", "Foundation", "AppKit", "Quartz"],
 }
 
 setup(
