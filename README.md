@@ -36,9 +36,16 @@ though only the selected one is readable.
 
 - **macOS** (tested on Sonoma/Sequoia-era builds).
 - The **Claude desktop app**, running, with a window open.
-- **Accessibility permission** for whatever launches the app (your terminal, or
-  the bundled `.app`): **System Settings → Privacy & Security → Accessibility**.
-  Without it, the Accessibility calls fail with error `-1719`.
+- **Accessibility permission** for whatever launches the app: **System Settings →
+  Privacy & Security → Accessibility**. The app **prompts for this automatically**
+  on first launch (via `AXIsProcessTrustedWithOptions`) and shows a `⚠️
+  Accessibility` menubar state + an "Open Accessibility Settings…" menu item until
+  granted. The grant goes to the **responsible process**: the bundled `.app`
+  prompts as **"ClaudeControl"**; the Homebrew CLI prompts as your **terminal**
+  (that's normal for CLI tools). You may also see a separate **Automation** prompt
+  ("…wants to control System Events") the first time — allow it too.
+  - **Verify it prompts:** `tccutil reset Accessibility de.xsg.claudecontrol`
+    then re-open the app → the dialog should reappear (the `.app` case).
 - [`uv`](https://docs.astral.sh/uv/) (for the from-source / Homebrew run modes).
 
 ## Install
